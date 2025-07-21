@@ -6,40 +6,37 @@
 
 import time
 from loguru import logger
-from strategy.trading_strategy import TradingStrategy
+from utils import with_strategy
 
 def run_automated_mode():
     """자동화 모드 실행"""
     logger.info("자동화 모드 시작")
     
-    strategy = TradingStrategy()
-    if not strategy.connect():
-        logger.error("API 연결 실패")
-        return
-    
     try:
-        # 예시 관심종목 추가 (실제 사용 시 설정 필요)
-        example_stocks = ['005930', '000660', '035420']  # 삼성전자, SK하이닉스, NAVER
-        for stock in example_stocks:
-            strategy.add_to_watchlist(stock)
-        
-        logger.info(f"관심종목 설정: {strategy.watchlist}")
-        
-        while True:
-            logger.info("전략 실행 중..")
-            strategy.run_strategy_on_watchlist()
+        with with_strategy() as strategy:
+            # 예시 관심종목 추가 (실제 사용 시 설정 필요)
+            example_stocks = ['005930', '000660', '035420']  # 삼성전자, SK하이닉스, NAVER
+            for stock in example_stocks:
+                strategy.add_to_watchlist(stock)
             
-            # 포트폴리오 요약 출력
-            summary = strategy.get_portfolio_summary()
-            logger.info(f"포트폴리오 요약: {summary}")
+            logger.info(f"관심종목 설정: {strategy.watchlist}")
             
-            # 5분 대기
-            time.sleep(300)
-            
+            while True:
+                logger.info("전략 실행 중..")
+                strategy.run_strategy_on_watchlist()
+                
+                # 포트폴리오 요약 출력
+                summary = strategy.get_portfolio_summary()
+                logger.info(f"포트폴리오 요약: {summary}")
+                
+                # 5분 대기
+                time.sleep(300)
+                
     except KeyboardInterrupt:
         logger.info("자동화 모드 종료")
-    finally:
-        strategy.disconnect()
+    except Exception as e:
+        logger.error(f"자동화 모드 실행 중 오류: {e}")
+        raise
 
 if __name__ == "__main__":
     # 독립 실행을 위한 설정
