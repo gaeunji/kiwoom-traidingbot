@@ -6,6 +6,7 @@
 """
 
 import sys
+import time
 import argparse
 from loguru import logger
 
@@ -25,26 +26,38 @@ def main():
                        default='interactive', help='실행 모드')
     parser.add_argument('--config-check', action='store_true', 
                        help='설정 확인만 실행')
+    parser.add_argument('--skip-test-connection', action='store_true',
+                       help='API 연결 테스트를 건너뜁니다')
     
     args = parser.parse_args()
     
-    # 로깅 설정
+    # 1. 로깅 설정 시간 측정
+    start = time.time()
     setup_logging()
+    logger.info(f"로깅 설정 완료: {time.time() - start:.2f}초")
     
     logger.info("키움증권 주식 매매 테스트 시작")
     
-    # 설정 확인
+    # 2. 설정 확인 시간 측정
+    start = time.time()
     if not check_configuration():
+        logger.error(f"설정 확인 실패: {time.time() - start:.2f}초")
         sys.exit(1)
+    logger.info(f"설정 확인 완료: {time.time() - start:.2f}초")
     
     if args.config_check:
-        logger.info("설정 확인 완료")
+        logger.info("설정 확인만 실행 후 종료")
         return
     
-    # 연결 테스트
-    if not test_connection():
-        logger.error("API 연결 테스트 실패")
-        sys.exit(1)
+    # 3. 연결 테스트 시간 측정 (옵션)
+    if not args.skip_test_connection:
+        start = time.time()
+        if not test_connection():
+            logger.error(f"API 연결 테스트 실패: {time.time() - start:.2f}초")
+            sys.exit(1)
+        logger.info(f"연결 테스트 완료: {time.time() - start:.2f}초")
+    else:
+        logger.info("API 연결 테스트를 건너뜁니다.")
     
     # 모드별 실행
     if args.mode == 'interactive':

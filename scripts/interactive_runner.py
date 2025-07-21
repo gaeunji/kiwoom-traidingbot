@@ -92,8 +92,28 @@ def run_interactive_mode():
                         
                 elif choice == '8':
                     print("\n=== 거래량상위 종목 조회 ===")
-                    print("이 기능은 현재 사용할 수 없습니다.")
-                    print("kiwoom.MarketDataAPI를 직접 사용하세요.")
+                    from kiwoom import MarketDataAPI
+                    market_api = MarketDataAPI()
+                    try:
+                        print("시장 구분 선택:")
+                        print("000: 전체, 001: 코스피, 101: 코스닥")
+                        market_type = input("시장 구분 (기본: 000): ").strip() or "000"
+                        limit = input("조회할 종목 수(기본: 20): ").strip()
+                        limit = int(limit) if limit else 20
+                        stocks = market_api.get_top_volume_stocks(limit=limit, market_type=market_type)
+                        if stocks:
+                            print(f"\n{market_type} 거래량상위 {len(stocks)}개 종목:")
+                            for i, stock in enumerate(stocks, 1):
+                                code = stock.get('stock_code', '-')
+                                name = stock.get('stock_name', '-')
+                                price = stock.get('current_price', 0)
+                                volume = stock.get('volume', 0)
+                                change_rate = stock.get('change_rate', 0)
+                                print(f"{i:2d}. {name} ({code}) | 현재가: {price:,}원 | 거래량: {volume:,} | 등락률: {change_rate:+.2f}%")
+                        else:
+                            print("❌ 거래량상위 종목 조회 실패 또는 결과 없음")
+                    except Exception as e:
+                        print(f"❌ 거래량상위 종목 조회 중 오류: {e}")
                     
                 elif choice == '9':
                     print("\n=== 캐시 통계 ===")

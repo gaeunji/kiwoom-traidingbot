@@ -19,35 +19,55 @@ class MarketDataAPI:
         self.base_url = settings.KIWOOM_BASE_URL
         self.token_manager = TokenManager()
         
-    def get_market_price(self, stock_code: str) -> Optional[Dict]:
-        """시장가 조회"""
+    def get_market_price(self, stock_code: str, cont_yn='N', next_key='') -> dict | None:
+        """
+        시장가 조회 (ka10095)
+        Args:
+            stock_code (str): 종목코드
+            cont_yn (str): 연속조회 여부
+            next_key (str): 다음 페이지 키
+        Returns:
+            dict or None: 응답 데이터
+        """
         try:
             if not self.token_manager.is_token_valid():
                 if not self.token_manager.refresh_token_if_needed():
                     return None
-            
-            url = f"{self.base_url}/uapi/domestic-stock/v1/quotations/inquire-price"
-            params = {
-                'FID_COND_MRKT_DIV_CODE': 'J',
-                'FID_INPUT_ISCD': stock_code
+
+            token = self.token_manager.access_token
+            host = 'https://api.kiwoom.com'
+            endpoint = '/api/dostk/stkinfo'
+            url = host + endpoint
+
+            data = {'stk_cd': stock_code}
+            headers = {
+                'Content-Type': 'application/json;charset=UTF-8',
+                'authorization': f'Bearer {token}',
+                'cont-yn': cont_yn,
+                'next-key': next_key,
+                'api-id': 'ka10095',
             }
-            headers = self.token_manager.get_authorization_header()
-            
-            response = requests.get(url, params=params, headers=headers)
-            
+
+            response = requests.post(url, headers=headers, json=data)
+            logger.debug(f"시장가 조회(ka10095) 응답코드: {response.status_code}")
+            logger.debug(f"응답 헤더: {json.dumps({key: response.headers.get(key) for key in ['next-key', 'cont-yn', 'api-id']}, ensure_ascii=False)}")
+            try:
+                body = response.json()
+                logger.debug(f"응답 바디: {json.dumps(body, indent=2, ensure_ascii=False)}")
+            except Exception as e:
+                logger.error(f"JSON 파싱 오류: {e}")
+                body = response.text
+                logger.error(f"응답 텍스트: {body}")
+
             if response.status_code == 200:
-                result = response.json()
-                if result.get('rt_cd') == '0':
-                    return result.get('output')
-                else:
-                    logger.error(f"시장가 조회 실패: {result.get('msg1')}")
-                    return None
+                return body
             else:
-                logger.error(f"시장가 조회 API 호출 실패: {response.status_code}")
+                logger.error(f"시장가 조회(ka10095) API 호출 실패: {response.status_code}")
                 return None
-                
         except Exception as e:
-            logger.error(f"시장가 조회 중 오류 발생: {e}")
+            logger.error(f"시장가 조회(ka10095) 호출 중 오류: {e}")
+            import traceback
+            logger.error(f"상세 오류: {traceback.format_exc()}")
             return None
     
     def get_top_volume_stocks(self, limit: int = 20, market_type: str = '000', cont_yn: str = 'N', next_key: str = '') -> Optional[List[Dict]]:
@@ -227,4 +247,65 @@ class MarketDataAPI:
                 
         except Exception as e:
             logger.error(f"시장 요약 조회 중 오류 발생: {e}")
+            return None 
+
+    def get_watchlist_info(self, stock_codes, cont_yn='N', next_key=''):
+        """
+        관심종목정보요청 (ka10095)
+        Args:
+            stock_codes (list[str] or str): 종목코드 리스트 또는 단일 코드
+            cont_yn (str): 연속조회 여부
+            next_key (str): 다음 페이지 키
+        Returns:
+            dict or None: 응답 데이터
+        """
+        try:
+            if not self.token_manager.is_token_valid():
+                if not self.token_manager.refresh_token_if_needed():
+                    return None
+
+            token = self.token_manager.access_token
+            host = 'https://api.kiwoom.com'
+            endpoint = '/api/dostk/stkinfo'
+            url = host + endpoint
+
+            # 단일 코드도 리스트로 변환
+            if isinstance(stock_codes, str):
+                stock_codes = [stock_codes]
+
+            # 요청 데이터: 여러 종목 지원 (API 문서에 따라 수정)
+            # 예시: {'stk_cd': '005930'} 또는 {'stk_cd_list': ['005930', '000660']}
+            if len(stock_codes) == 1:
+                data = {'stk_cd': stock_codes[0]}
+            else:
+                data = {'stk_cd_list': stock_codes}
+
+            headers = {
+                'Content-Type': 'application/json;charset=UTF-8',
+                'authorization': f'Bearer {token}',
+                'cont-yn': cont_yn,
+                'next-key': next_key,
+                'api-id': 'ka10095',
+            }
+
+            response = requests.post(url, headers=headers, json=data)
+            logger.debug(f"관심종목정보요청 응답코드: {response.status_code}")
+            logger.debug(f"응답 헤더: {json.dumps({key: response.headers.get(key) for key in ['next-key', 'cont-yn', 'api-id']}, ensure_ascii=False)}")
+            try:
+                body = response.json()
+                logger.debug(f"응답 바디: {json.dumps(body, indent=2, ensure_ascii=False)}")
+            except Exception as e:
+                logger.error(f"JSON 파싱 오류: {e}")
+                body = response.text
+                logger.error(f"응답 텍스트: {body}")
+
+            if response.status_code == 200:
+                return body
+            else:
+                logger.error(f"관심종목정보요청 API 호출 실패: {response.status_code}")
+                return None
+        except Exception as e:
+            logger.error(f"관심종목정보요청(ka10095) 호출 중 오류: {e}")
+            import traceback
+            logger.error(f"상세 오류: {traceback.format_exc()}")
             return None 
