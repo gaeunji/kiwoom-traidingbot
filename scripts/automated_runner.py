@@ -6,12 +6,15 @@
 
 import time
 from loguru import logger
+
 from utils import with_strategy
+
 
 def run_automated_mode():
     """자동화 모드 실행"""
     logger.info("자동화 모드 시작")
     
+
     try:
         with with_strategy() as strategy:
             # 예시 관심종목 추가 (실제 사용 시 설정 필요)
@@ -37,6 +40,7 @@ def run_automated_mode():
     except Exception as e:
         logger.error(f"자동화 모드 실행 중 오류: {e}")
         raise
+
 
 if __name__ == "__main__":
     # 독립 실행을 위한 설정
