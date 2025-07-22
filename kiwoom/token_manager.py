@@ -256,12 +256,16 @@ class TokenManager:
             if self.access_token:
                 logger.info("✅ .env 파일에서 토큰을 로드했습니다.")
                 logger.info("🔍 토큰 유효성을 확인하기 위해 API 호출을 시도합니다.")
-                
                 # 토큰 유효성 확인
                 if self.is_token_valid():
                     logger.info("✅ 로드된 토큰이 유효합니다.")
                 else:
                     logger.warning("⚠️ 로드된 토큰이 유효하지 않습니다.")
+                    # 토큰이 만료된 경우 자동 갱신 시도
+                    if self.refresh_token_if_needed():
+                        logger.info("🔄 토큰 자동 갱신 성공")
+                    else:
+                        logger.error("❌ 토큰 자동 갱신 실패")
             else:
                 logger.info("ℹ️ .env 파일에서 토큰을 찾을 수 없습니다.")
                 
