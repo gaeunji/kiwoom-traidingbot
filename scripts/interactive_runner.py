@@ -5,14 +5,61 @@
 """
 
 from loguru import logger
-from utils import with_strategy
+
+
+def print_summary(summary: dict, title: str = "요약 정보", show_positions: bool = True):
+    """
+    포트폴리오/계좌 잔고 요약 정보 출력 공통 함수
+    
+    Args:
+        summary: 요약 정보 딕셔너리
+        title: 출력 제목
+        show_positions: 보유 종목 정보 표시 여부
+    """
+    print(f"\n=== {title} ===")
+    
+    # 기본 정보 출력
+    if 'cash_bal' in summary:  # 계좌 잔고 형식
+        print(f"예수금자산금액: {summary['cash_bal']:,.0f}원")
+        print(f"총평가금액: {summary['total_value']:,.0f}원")
+        print(f"총평가손익: {summary['total_pnl']:,.0f}원")
+        print(f"총수익률: {summary['total_profit_rate']:.2f}%")
+        print(f"총매입금액: {summary['total_purchase_amount']:,.0f}원")
+        print(f"총대출금액: {summary['total_loan_amount']:,.0f}원")
+    else:  # 포트폴리오 요약 형식
+        print(f"총 자산가치: {summary['total_value']:,.0f}원")
+        print(f"총 손익: {summary['total_pnl']:,.0f}원")
+        print(f"총 수익률: {summary['total_profit_rate']:.2f}%")
+        print(f"보유 종목 수: {len(summary['positions'])}개")
+        print(f"사용 가능한 현금: {summary['available_cash']:,.0f}원")
+        print(f"총 매입금액: {summary['total_purchase_amount']:,.0f}원")
+        print(f"총 대출금액: {summary['total_loan_amount']:,.0f}원")
+    
+    # 보유 종목 정보 출력
+    if show_positions and summary.get('positions'):
+        positions = summary['positions']
+        print(f"\n보유 종목 ({len(positions)}개):")
+        for i, position in enumerate(positions[:5]):  # 상위 5개만 표시
+            print(f"  {i+1}. {position['stk_nm']} ({position['stk_cd']})")
+            print(f"     보유수량: {int(position['rmnd_qty'])}주")
+            print(f"     현재가: {int(position['cur_prc']):,}원")
+            print(f"     평가손익: {int(position['evltv_prft']):,}원 ({position['prft_rt']}%)")
+        if len(positions) > 5:
+            print(f"  ... 외 {len(positions) - 5}개 종목")
 
 def run_interactive_mode():
     """대화형 모드 실행"""
+    # 독립 실행을 위한 import
+    from utils import with_strategy
+    from utils.connection_monitor import get_connection_status, check_connection_health
+    from service.portfolio_service import PortfolioService
+    
     logger.info("대화형 모드 시작")
     
     try:
         with with_strategy() as strategy:
+            # PortfolioService를 별도로 생성 (동일 커넥터 사용)
+            portfolio_service = PortfolioService(strategy.api_connector)
             while True:
                 print("\n=== 키움증권 주식 매매 테스트 ===")
                 print("1. 관심종목 추가")
@@ -47,46 +94,27 @@ def run_interactive_mode():
                         
                 elif choice == '4':
                     summary = strategy.get_portfolio_summary()
-                    print("\n=== 포트폴리오 요약 ===")
-                    print(f"총 자산가치: {summary['total_value']:,.0f}원")
-                    print(f"총 손익: {summary['total_pnl']:,.0f}원")
-                    print(f"총 수익률: {summary['total_profit_rate']:.2f}%")
-                    print(f"보유 종목 수: {len(summary['positions'])}개")
-                    print(f"사용 가능한 현금: {summary['available_cash']:,.0f}원")
-                    print(f"총 매입금액: {summary['total_purchase_amount']:,.0f}원")
-                    print(f"총 대출금액: {summary['total_loan_amount']:,.0f}원")
+                    print_summary(summary, "포트폴리오 요약")
                     
                 elif choice == '5':
                     print("전략 실행 중..")
                     strategy.run_strategy_on_watchlist()
                     
                 elif choice == '6':
-                    status = strategy.get_connection_status()
+                    health = check_connection_health(strategy.api_connector)
                     print("\n=== 연결 상태 ===")
-                    for key, value in status.items():
-                        print(f"{key}: {value}")
+                    print(f"건강도 점수: {health['health_score']}/100")
+                    print(f"상태: {health['status']}")
+                    if health['issues']:
+                        print(f"문제점: {', '.join(health['issues'])}")
+                    print("\n상세 정보:")
+                    for key, value in health['details'].items():
+                        print(f"  {key}: {value}")
                         
                 elif choice == '7':
-                    print("\n=== 계좌 잔고 조회 ===")
-                    account_summary = strategy.get_account_summary()
+                    account_summary = portfolio_service.get_account_summary()
                     if account_summary:
-                        print("계좌 잔고 정보:")
-                        print(f"예수금자산금액: {account_summary['cash_bal']:,.0f}원")
-                        print(f"총평가금액: {account_summary['total_value']:,.0f}원")
-                        print(f"총평가손익: {account_summary['total_pnl']:,.0f}원")
-                        print(f"총수익률: {account_summary['total_profit_rate']:.2f}%")
-                        print(f"총매입금액: {account_summary['total_purchase_amount']:,.0f}원")
-                        print(f"총대출금액: {account_summary['total_loan_amount']:,.0f}원")
-                        
-                        if account_summary['positions']:
-                            print(f"\n보유 종목 ({len(account_summary['positions'])}개):")
-                            for i, position in enumerate(account_summary['positions'][:5]):  # 상위 5개만 표시
-                                print(f"  {i+1}. {position['stk_nm']} ({position['stk_cd']})")
-                                print(f"     보유수량: {int(position['rmnd_qty'])}주")
-                                print(f"     현재가: {int(position['cur_prc']):,}원")
-                                print(f"     평가손익: {int(position['evltv_prft']):,}원 ({position['prft_rt']}%)")
-                            if len(account_summary['positions']) > 5:
-                                print(f"  ... 외 {len(account_summary['positions']) - 5}개 종목")
+                        print_summary(account_summary, "계좌 잔고 조회")
                     else:
                         print("계좌 잔고 조회 실패")
                         

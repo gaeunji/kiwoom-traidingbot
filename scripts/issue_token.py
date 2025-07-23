@@ -73,36 +73,39 @@ def main():
         response = fn_au10001(data=params)
         
         if response.status_code == 200:
-            print("\n✅ 토큰 발급 성공!")
+            print("\n✅ 토큰 발급 성공")
             
-            # 토큰 정보 추출
+            # 토큰 정보 추출 (키움 API 응답 구조에 맞게 수정)
             response_data = response.json()
-            access_token = response_data.get('access_token')
+            access_token = response_data.get('token')  # 키움 API는 'token' 필드 사용
             token_type = response_data.get('token_type', 'Bearer')
-            expires_in = response_data.get('expires_in')
+            expires_dt = response_data.get('expires_dt', '')
             
             print(f"\n발급된 토큰 정보:")
             print(f"  액세스 토큰: {access_token[:20]}...")
             print(f"  토큰 타입: {token_type}")
-            print(f"  만료 시간: {expires_in}초")
+            print(f"  만료 시간: {expires_dt}")
             
             # Authorization 헤더 표시
             auth_header = f"{token_type} {access_token}"
             print(f"  Authorization 헤더: {auth_header[:30]}...")
             
-            # .env 파일에 토큰 저장 여부 확인
-            save_to_env = input("\n.env 파일에 토큰을 저장하시겠습니까? (y/N): ").strip().lower()
-            if save_to_env == 'y':
-                try:
-                    from kiwoom import TokenManager
-                    token_manager = TokenManager()
-                    token_manager.access_token = access_token
-                    token_manager.save_token_to_env()
-                    print("✅ 토큰이 .env 파일에 저장되었습니다.")
-                except Exception as e:
-                    print(f"❌ .env 파일 저장 실패: {e}")
-                    print("📝 수동으로 .env 파일에 다음을 추가해주세요:")
-                    print(f"ACCESS_TOKEN={access_token}")
+            # 자동으로 .env 파일에 토큰 저장
+            try:
+                import sys
+                # 프로젝트 루트 디렉토리를 Python 경로에 추가
+                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                sys.path.insert(0, project_root)
+                
+                from kiwoom import TokenManager
+                token_manager = TokenManager()
+                token_manager.access_token = access_token
+                token_manager.save_token_to_env()
+                print("✅ 토큰이 .env 파일에 자동 저장되었습니다.")
+            except Exception as e:
+                print(f"❌ .env 파일 저장 실패: {e}")
+                print("📝 수동으로 .env 파일에 다음을 추가해주세요:")
+                print(f"ACCESS_TOKEN={access_token}")
             
         else:
             print(f"\n❌ 토큰 발급 실패: {response.status_code}")
