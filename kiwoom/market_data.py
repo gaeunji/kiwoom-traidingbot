@@ -103,28 +103,26 @@ class MarketDataAPI:
             response = requests.post(url, headers=headers, json=data)
             print('Code:', response.status_code)
             print('Header:', json.dumps({key: response.headers.get(key) for key in ['next-key', 'cont-yn', 'api-id']}, indent=4, ensure_ascii=False))
-            # 응답 내용 확인
-            result = response.json()
             
-            # 데이터 필드 확인 (키움 API 응답 구조에 맞게 수정)
-            if 'tdy_trde_qty_upper' in result:
-                if result['tdy_trde_qty_upper']:
-                    print(f"조회된 종목 수: {len(result['tdy_trde_qty_upper'])}개")
-                else:
-                    print("tdy_trde_qty_upper 필드는 있지만 비어있습니다.")
-            else:
-                print("응답에 'tdy_trde_qty_upper' 필드가 없습니다.")
-                print(f"응답 키들: {list(result.keys())}")
-
             if response.status_code == 200:
                 result = response.json()
+                
+                # 데이터 필드 확인 (키움 API 응답 구조에 맞게 수정)
                 if 'tdy_trde_qty_upper' in result:
-                    stocks = result['tdy_trde_qty_upper']
-                    processed_stocks = self._process_volume_stocks(stocks)
-                    if limit > 0:
-                        processed_stocks = processed_stocks[:limit]
-                    return processed_stocks
+                    if result['tdy_trde_qty_upper']:
+                        print(f"조회된 종목 수: {len(result['tdy_trde_qty_upper'])}개")
+                        stocks = result['tdy_trde_qty_upper']
+                        processed_stocks = self._process_volume_stocks(stocks)
+                        if limit > 0:
+                            processed_stocks = processed_stocks[:limit]
+                        return processed_stocks
+                    else:
+                        print("tdy_trde_qty_upper 필드는 있지만 비어있습니다.")
+                        logger.error("❌ 거래량 상위 종목 조회 실패: 데이터 없음")
+                        return None
                 else:
+                    print("응답에 'tdy_trde_qty_upper' 필드가 없습니다.")
+                    print(f"응답 키들: {list(result.keys())}")
                     logger.error("❌ 거래량 상위 종목 조회 실패: 데이터 없음")
                     return None
             else:

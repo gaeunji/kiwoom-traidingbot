@@ -5,56 +5,38 @@ TradingStrategy Context Manager
 """
 
 from contextlib import contextmanager
-from typing import Optional, Callable
+from typing import Optional, Callable, Type
 from loguru import logger
-from strategy.trading_strategy import TradingStrategy
+# from strategy.simple_ma import SimpleMAStrategy  # 직접 import 제거 (circular import 방지)
 
 @contextmanager
-def with_strategy():
+def with_strategy(strategy_cls: Type = None, *args, **kwargs):
     """
-    TradingStrategy Context Manager
-    
-    사용법:
-        with with_strategy() as strategy:
-            strategy.add_to_watchlist('005930')
-            strategy.run_strategy_on_watchlist()
+    모듈화된 전략 Context Manager
+    기본값은 SimpleMAStrategy이나, circular import 방지를 위해 내부에서 import
     """
-    strategy = TradingStrategy()
-    
+    if strategy_cls is None:
+        from strategy.simple_ma import SimpleMAStrategy
+        strategy_cls = SimpleMAStrategy
+    strategy = strategy_cls(*args, **kwargs)
     try:
-        # 연결 시도
         if not strategy.connect():
             logger.error("API 연결 실패")
             raise ConnectionError("API 연결에 실패했습니다.")
-        
-        logger.info("TradingStrategy 연결 성공")
+        logger.info(f"{strategy_cls.__name__} 연결 성공")
         yield strategy
-        
     except Exception as e:
-        logger.error(f"TradingStrategy 실행 중 오류: {e}")
+        logger.error(f"{strategy_cls.__name__} 실행 중 오류: {e}")
         raise
     finally:
-        # 연결 해제
         strategy.disconnect()
-        logger.info("TradingStrategy 연결 해제")
+        logger.info(f"{strategy_cls.__name__} 연결 해제")
 
-def run_with_strategy(func: Callable[[TradingStrategy], None], 
-                     error_handler: Optional[Callable[[Exception], None]] = None):
+def run_with_strategy(func: Callable, strategy_cls: Type = None, error_handler: Optional[Callable[[Exception], None]] = None, *args, **kwargs):
     """
-    TradingStrategy와 함께 함수 실행하는 헬퍼 함수
-    
-    Args:
-        func: TradingStrategy를 인자로 받는 함수
-        error_handler: 오류 처리 함수 (선택사항)
-    
-    사용법:
-        def my_strategy(strategy):
-            strategy.add_to_watchlist('005930')
-            strategy.run_strategy_on_watchlist()
-        
-        run_with_strategy(my_strategy)
+    모듈화된 전략과 함께 함수 실행하는 헬퍼 함수
     """
-    with with_strategy() as strategy:
+    with with_strategy(strategy_cls, *args, **kwargs) as strategy:
         try:
             func(strategy)
         except Exception as e:
